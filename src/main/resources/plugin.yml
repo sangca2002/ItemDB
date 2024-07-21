@@ -1,0 +1,14 @@
+name: ItemDB
+main: me.sangca.itemdb.ItemDBPlugin
+version: 1.0.0
+libraries:
+  - org.jetbrains:annotations:24.1.0
+  - com.fasterxml.jackson.core:jackson-core:2.17.1
+  - com.fasterxml.jackson.core:jackson-annotations:2.17.1
+  - com.fasterxml.jackson.core:jackson-databind:2.17.1
+commands:
+  itemdb:
+    description: ItemDB plugin's main command.
+    usage: /<command>
+    permission: itemdb.use
+    aliases: [idb, itemdatabase]
