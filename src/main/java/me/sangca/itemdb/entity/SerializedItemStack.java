@@ -1,6 +1,6 @@
 package me.sangca.itemdb.entity;
 
-public class SortedItemStack {
+public class SerializedItemStack {
 
     private Integer id;
 
@@ -10,9 +10,9 @@ public class SortedItemStack {
 
     private String itemStackAsString;
 
-    public SortedItemStack() {}
+    public SerializedItemStack() {}
 
-    public SortedItemStack(String category, String key, String itemStackAsString) {
+    public SerializedItemStack(String category, String key, String itemStackAsString) {
         this.category = category;
         this.key = key;
         this.itemStackAsString = itemStackAsString;

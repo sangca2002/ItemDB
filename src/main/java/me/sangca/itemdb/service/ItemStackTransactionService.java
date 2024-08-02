@@ -6,25 +6,21 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-public class ItemService {
+public class ItemStackTransactionService {
     public final HttpClient httpClient;
 
-    public ItemService(HttpClient httpClient) {
+    public ItemStackTransactionService(HttpClient httpClient) {
         this.httpClient = httpClient;
     }
 
-    public String getEncodedItemStackList(String page) {
+    public String getEncodedItemStackList(String page) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
             .GET()
-            .uri(URI.create(String.format("http://127.0.0.1:8080/itemlist/%s",page)))
+            .uri(URI.create(String.format("http://127.0.0.1:8080/items?page=%s",page)))
             .build();
 
-        HttpResponse<String> response = null;
-        try {
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        HttpResponse<String> response;
+        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         return response.body();
     }
@@ -38,31 +34,23 @@ public class ItemService {
         httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    public void deleteEncodedItemStackWithCategoryAndKey(String category, String key) {
+    public void deleteEncodedItemStackWithCategoryAndKey(String category, String key) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
             .DELETE()
             .uri(URI.create(String.format("http://127.0.0.1:8080/items/%s/%s",category,key)))
             .build();
 
-        try {
-            httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    public String getEncodedItemStackWithCategoryAndKey(String category, String key) {
+    public String getEncodedItemStackWithCategoryAndKey(String category, String key) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
             .GET()
             .uri(URI.create(String.format("http://127.0.0.1:8080/items/%s/%s",category,key)))
             .build();
 
-        HttpResponse<String> response = null;
-        try {
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        HttpResponse<String> response;
+        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         return response.body();
     }

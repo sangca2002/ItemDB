@@ -1,10 +1,7 @@
 package me.sangca.itemdb.command;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import me.sangca.itemdb.entity.SortedItemStack;
-import me.sangca.itemdb.service.ItemService;
+import me.sangca.itemdb.entity.SerializedItemStack;
+import me.sangca.itemdb.service.ItemStackTransactionService;
 import me.sangca.itemdb.service.ItemStackTransformationService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -18,11 +15,11 @@ import java.util.List;
 
 public class AdminCommand implements CommandExecutor {
     public ItemStackTransformationService transformationService;
-    public ItemService itemService;
+    public ItemStackTransactionService transactionService;
 
-    public AdminCommand(ItemStackTransformationService transformationService, ItemService httpClientService) {
+    public AdminCommand(ItemStackTransformationService transformationService, ItemStackTransactionService transactionService) {
         this.transformationService = transformationService;
-        this.itemService = httpClientService;
+        this.transactionService = transactionService;
     }
 
     @Override
@@ -33,84 +30,112 @@ public class AdminCommand implements CommandExecutor {
         }
 
         if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("register")) {
-                sender.sendMessage("§c/itemdb register <category> <key> : registers an item to a category with a unique key.");
-                return true;
-            }
-            if (args[0].equalsIgnoreCase("delete")) {
-                sender.sendMessage("§c/itemdb delete <category> <key> : deletes an item in a category with a unique key.");
-                return true;
-            }
-            if (args[0].equalsIgnoreCase("spawn")) {
-                sender.sendMessage("§c/itemdb spawn <category> <key> : spawns an item by its category and unique key.");
-                return true;
-            }
-            if (args[0].equalsIgnoreCase("list")) {
-                if (Integer.parseInt(args[1]) != (int)Integer.parseInt(args[1])){
-                    sender.sendMessage("§cIncorrect usage. /itemdb list <page>");
+            switch (args[0].toLowerCase()) {
+                case "register":
+                    sender.sendMessage("§c/itemdb register <category> <key> : registers an item to a category with a unique key.");
                     return true;
-                }
 
-                ObjectMapper objectMapper = new ObjectMapper();
-                List<SortedItemStack> sortedItemStackList;
-                try {
-                    sortedItemStackList = objectMapper.readValue(itemService.getEncodedItemStackList(args[1]), new TypeReference<List<SortedItemStack>>(){});
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException(e);
-                }
+                case "delete":
+                    sender.sendMessage("§c/itemdb delete <category> <key> : deletes an item in a category with a unique key.");
+                    return true;
 
-                for (SortedItemStack sortedItemStack : sortedItemStackList) {
+                case "spawn":
+                    sender.sendMessage("§c/itemdb spawn <category> <key> : spawns an item by its category and unique key.");
+                    return true;
 
-                    ItemStack itemStack;
-                    try {
-                        itemStack = transformationService.itemStackFromBase64(sortedItemStack.getItemStackAsString());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                case "list":
+                    if (Integer.parseInt(args[1]) != (int)Integer.parseInt(args[1])){
+                        sender.sendMessage("§cIncorrect usage. /itemdb list <page>");
+                        return true;
                     }
 
-                    sender.sendMessage(String.format("Category: %s Key: %s ItemName: %s ItemType: %s",
-                        sortedItemStack.getCategory(),
-                        sortedItemStack.getKey(),
-                        itemStack.getItemMeta().getDisplayName(),
-                        itemStack.getType().getItemTranslationKey()));
-                }
-                sender.sendMessage(String.format("Current Page: %s", args[1]));
-                return true;
+                    List<SerializedItemStack> serializedItemStackList;
+                    try {
+                        serializedItemStackList = transformationService.getItemListFromString(transactionService.getEncodedItemStackList(args[1]));
+                    } catch (IOException e) {
+                        sender.sendMessage("§cIOException occurred");
+                        return true;
+                    } catch (InterruptedException e) {
+                        sender.sendMessage("§cInterruptedException occurred");
+                        return true;
+                    }
+
+                    for (SerializedItemStack serializedItemStack : serializedItemStackList) {
+
+                        ItemStack itemStack;
+                        try {
+                            itemStack = transformationService.encodeItemStackFromBase64(serializedItemStack.getItemStackAsString());
+                        } catch (IOException e) {
+                            sender.sendMessage("§cIOException occurred");
+                            return true;
+                        } catch (ClassNotFoundException e) {
+                            sender.sendMessage("§cClassNotFoundException occurred");
+                            return true;
+                        }
+
+                        sender.sendMessage(String.format("Category: %s Key: %s ItemName: %s ItemType: %s",
+                            serializedItemStack.getCategory(),
+                            serializedItemStack.getKey(),
+                            itemStack.getItemMeta().getDisplayName(),
+                            itemStack.getType().getTranslationKey()));
+                    }
+
+                    sender.sendMessage(String.format("Current Page: %s", args[1]));
+                    return true;
             }
         }
 
         if (args.length == 3) {
-            if (args[0].equalsIgnoreCase("register")) {
+            switch (args[0].toLowerCase()) {
+                case "register":
+                    ItemStack heldItem = ((Player) sender).getInventory().getItemInMainHand();
 
-                ItemStack heldItem = ((Player) sender).getInventory().getItemInMainHand();
-                String encodedString = transformationService.itemStackToBase64(heldItem);
-                try {
-                    itemService.postEncodedItemStackWithCategoryAndKey(encodedString, args[1], args[2]);
-                }
-                catch (IOException | InterruptedException e) {
-                    sender.sendMessage("Item weird.");
-                }
-                sender.sendMessage("Item successfully registered.");
-                return true;
-            }
-            if (args[0].equalsIgnoreCase("delete")) {
+                    try {
+                        String encodedString = transformationService.encodeItemStackToBase64(heldItem);
+                        transactionService.postEncodedItemStackWithCategoryAndKey(encodedString, args[1], args[2]);
+                    } catch (IOException e) {
+                        sender.sendMessage("§cIOException occurred");
+                        return true;
+                    } catch (InterruptedException e) {
+                        sender.sendMessage("§cInterruptedException occurred");
+                        return true;
+                    }
 
-                itemService.deleteEncodedItemStackWithCategoryAndKey(args[1], args[2]);
-                sender.sendMessage("Item successfully deleted.");
-                return true;
-            }
-            if (args[0].equalsIgnoreCase("spawn")) {
+                    sender.sendMessage("Item successfully registered.");
+                    return true;
 
-                ItemStack itemStack;
-                try {
-                    itemStack = transformationService.itemStackFromBase64(itemService.getEncodedItemStackWithCategoryAndKey(args[1], args[2]));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                case "delete":
+                    try {
+                        transactionService.deleteEncodedItemStackWithCategoryAndKey(args[1], args[2]);
+                    } catch (IOException e) {
+                        sender.sendMessage("§cIOException occurred");
+                        return true;
+                    } catch (InterruptedException e) {
+                        sender.sendMessage("§cInterruptedException occurred");
+                        return true;
+                    }
 
-                ((Player) sender).getInventory().addItem(itemStack);
-                sender.sendMessage("Item successfully spawned.");
-                return true;
+                    sender.sendMessage("Item successfully deleted.");
+                    return true;
+
+                case "spawn":
+                    ItemStack itemStack;
+                    try {
+                        itemStack = transformationService.encodeItemStackFromBase64(transactionService.getEncodedItemStackWithCategoryAndKey(args[1], args[2]));
+                    } catch (IOException e) {
+                        sender.sendMessage("§cIOException occurred");
+                        return true;
+                    } catch (InterruptedException e) {
+                        sender.sendMessage("§cInterruptedException occurred");
+                        return true;
+                    } catch (ClassNotFoundException e) {
+                        sender.sendMessage("§cClassNotFoundException occurred");
+                        return true;
+                    }
+
+                    ((Player) sender).getInventory().addItem(itemStack);
+                    sender.sendMessage("Item successfully spawned.");
+                    return true;
             }
         }
 
